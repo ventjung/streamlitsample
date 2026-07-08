@@ -1,33 +1,41 @@
-from openai import OpenAI
 import streamlit as st
+from google import genai
 
-st.title("ChatGPT-like clone")
+st.title("Gemini Chatbot")
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-4.1-mini"
+client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
+# User input
 if prompt := st.chat_input("What is up?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.messages.append(
+        {"role": "user", "content": prompt}
+    )
+
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # Build conversation history
+    history = ""
+    for msg in st.session_state.messages:
+        role = "User" if msg["role"] == "user" else "Assistant"
+        history += f"{role}: {msg['content']}\n"
+
     with st.chat_message("assistant"):
-        stream = client.chat.completions.create(
-            model=st.session_state["openai_model"],
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=history,
         )
-        response = st.write_stream(stream)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+
+        st.markdown(response.text)
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": response.text}
+    )
